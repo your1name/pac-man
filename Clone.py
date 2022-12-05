@@ -60,22 +60,79 @@ player_images = []
 for i in range(1, 5):
     player_images.append(pygame.transform.scale(pygame.image.load(f'assets/player_images/{i}.png'), (23, 23)))
 
-direction = 0
-counter  = 0
-player_x =  345
-player_y = 621
-flicker = False
 
+counter  = 0
+flicker = False
 level = board
-PINK = (230, 200, 158)
-score = 0
-lives = 3 
+
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 timer = pygame.time.Clock()
 
-class Pacman():
+class Game:
+    def __init__(self,score) :
+
+        self.pacman = Pacman(27,15) 
+        self.ghosts = [Ghost(18,12,'blue'), Ghost(18,14,'red'), Ghost(18,15,'pink'), Ghost(18,17,"orange") ]
+        self.score = score
+        self.lives  = 3
+    
+    
+    def draw_live(self):
+    #pygame.draw.rect(screen,(255,255,255),(30 , 835, 23, 23),1)
+        for i in range(self.lives):
+            screen.blit(pygame.transform.scale(player_images[0], (25, 25)), (30 + i * 40, 830))
+    
+    def update(self):
+
+        self.pacman.update() #pac-man di chuyển
+        
+        # pac-man chui hầm
+        if self.pacman.col >= 29:
+            self.pacman.col = 0
+        
+        if self.pacman.col < 0:
+            self.pacman.col = len(level[0]) - 1
+
+
+        for ghost in self.ghosts: # logic score
+            if self.pacman.row % 1.0 == 0 and self.pacman.col % 1.0 == 0:
+                if level[int(self.pacman.row)][int(self.pacman.col)] == 1:
+                    level[int(self.pacman.row)][int(self.pacman.col)] = 0
+                    self.score += 10
+
+            if level[int(self.pacman.row)][int(self.pacman.col)] == 2:
+                level[int(self.pacman.row)][int(self.pacman.col)] = 0
+                self.score += 50
+                for ghost in self.ghosts:
+                        ghost.setAttacked(True)     # spooked
+
+    def render(self):
+
+        self.draw_live()
+        self.pacman.draw()
+
+        for ghost in self.ghosts:
+             ghost.draw()
+
+        pygame.display.update()
+    
+    def touchingPacman(self, row, col):
+        if row - 0.5 <= self.pacman.row and row >= self.pacman.row and col == self.pacman.col: # cùng cột, nằm dưới , -0.5 thì đi qua pacman
+            return True
+        elif row + 0.5 >= self.pacman.row and row <= self.pacman.row and col == self.pacman.col:
+            return True
+        elif row == self.pacman.row and col - 0.5 <= self.pacman.col and col >= self.pacman.col:
+            return True
+        elif row == self.pacman.row and col + 0.5 >= self.pacman.col and col <= self.pacman.col:
+            return True
+        elif row == self.pacman.row and col == self.pacman.col:
+            return True
+        return False
+
+
+class Pacman:
     def __init__(self, row, col):
         self.row = row
         self.col = col
@@ -128,8 +185,9 @@ class Pacman():
         elif self.dir == 1:
             if canMove(self.row, math.floor(self.col - self.pacSpeed)) and self.row % 1.0 == 0:
                 self.col -= self.pacSpeed
-
-class Ghost():
+        
+       
+class Ghost:
     def __init__(self, row, col, color) :
         self.row = row
         self.col = col
@@ -144,11 +202,10 @@ class Ghost():
 
     def draw(self):
         ghostImage = pygame.image.load(f'assets/ghost_images/dead.png')
-        
         if self.dead:
             ghostImage = pygame.image.load(f'assets/ghost_images/dead.png')
         elif self.attacked:
-            pygame.image.load(f'assets/ghost_images/powerup.png') # spooked
+            ghostImage = pygame.image.load(f'assets/ghost_images/powerup.png') # spooked
         else:
             if self.color == "blue":
                 ghostImage = pygame.image.load(f'assets/ghost_images/blue.png')
@@ -162,6 +219,9 @@ class Ghost():
         ghostImage = pygame.transform.scale(ghostImage, (30,30))
         screen.blit(ghostImage, (self.col *23, self.row * 23))
     
+    def update(self):
+        pass
+
     def setAttacked(self, isAttacked):
         self.attacked = isAttacked
 
@@ -174,7 +234,29 @@ class Ghost():
     def isDead(self):
         return self.dead
 
+    def move(self):
+        # print(self.target)
+        # //self.lastLoc = [self.row, self.col]
+        if self.dir == 3:
+            self.row -= self.ghostSpeed
+        elif self.dir == 0:
+            self.col += self.ghostSpeed
+        elif self.dir == 2:
+            self.row += self.ghostSpeed
+        elif self.dir == 1:
+            self.col -= self.ghostSpeed
 
+        # Incase they go through the middle tunnel
+        if self.col < 0:
+            self.col = len(level[0]) - 1
+
+    def calcDistance(self, a, b):
+        dR = a[0] - b[0]
+        dC = a[1] - b[1]
+        return math.sqrt((dR * dR) + (dC * dC))
+
+    
+# ================= end class ====================
 
 def draw_board():
 
@@ -183,10 +265,10 @@ def draw_board():
             #pygame.draw.rect(screen,(255,255,255),(j*PIXEL, i * PIXEL, 23, 23),1)
 
             if level[i][j] == 1: # tik-tak
-                pygame.draw.circle(screen, PINK, (j * PIXEL + (0.5 * PIXEL), i * PIXEL + (0.5 * PIXEL)), 4)
+                pygame.draw.circle(screen, (230, 200, 158), (j * PIXEL + (0.5 * PIXEL), i * PIXEL + (0.5 * PIXEL)), 4)
 
             if level[i][j] == 2 and not flicker : # special tik-tak
-                pygame.draw.circle(screen, PINK, (j * PIXEL + (0.5 * PIXEL), i * PIXEL + (0.5 * PIXEL)), 10)
+                pygame.draw.circle(screen, (230, 200, 158), (j * PIXEL + (0.5 * PIXEL), i * PIXEL + (0.5 * PIXEL)), 10)
 
             if level[i][j] == 3:  # line Y
                 pygame.draw.line(screen, 'blue', (j * PIXEL + (0.5 * PIXEL), i * PIXEL),(j * PIXEL + (0.5 * PIXEL), i * PIXEL + PIXEL), 3) # line từ A (x,y) tới B (x,y)
@@ -216,24 +298,11 @@ def canMove(row, col):
         return True
     return False
 
-def check_collisions(score):
-    if pac.row % 1.0 == 0 and pac.col % 1.0 == 0:
-        if level[int(pac.row)][int(pac.col)] == 1:
-            level[int(pac.row)][int(pac.col)] = 0
-            score += 10
-        if level[int(pac.row)][int(pac.col)] == 2:
-            level[int(pac.row)][int(pac.col)] = 0
-            score += 50
-           
-    return score
+    
 
-def draw_live():
-    #pygame.draw.rect(screen,(255,255,255),(30 , 835, 23, 23),1)
-    for i in range(lives):
-        screen.blit(pygame.transform.scale(player_images[0], (25, 25)), (30 + i * 40, 830))
+game = Game(score= 0)
 
-pac = Pacman(27,15) 
-ghosts = [Ghost(18,12,'blue'), Ghost(18,14,'red'), Ghost(18,15,'pink'), Ghost(18,17,"orange") ]
+
 while True:
     timer.tick(60) # fps cua game
     if counter < 31:
@@ -247,21 +316,12 @@ while True:
     screen.fill((0,0,0))
     draw_board()
 
-    pac.update()
-    pac.draw()
-    #print(pac.row, pac.col, f'score: {score}')
-    for ghost in ghosts:
-            ghost.draw()
 
-    
-    if pac.col >= 29:
-        pac.col = 0
-    
-    if pac.col < 0:
-        pac.col = 29
+    print(game.pacman.row, game.pacman.col, f'score: {game.score}')
 
-    score = check_collisions(score)
-    draw_live()
+
+    game.render() # draw pac man, ghost, lives
+    
     
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -270,12 +330,12 @@ while True:
         
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RIGHT:
-                pac.newDir= 0
+                game.pacman.newDir= 0
             if event.key == pygame.K_LEFT:
-                pac.newDir= 1
+                game.pacman.newDir= 1
             if event.key == pygame.K_UP:
-                pac.newDir= 2
+                game.pacman.newDir= 2
             if event.key == pygame.K_DOWN:
-                pac.newDir= 3
+                game.pacman.newDir= 3
     
-    pygame.display.flip()
+    game.update() # update  (logic score), (pac-man di chuyển)
